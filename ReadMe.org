@@ -1,0 +1,9 @@
+* Auto-Abbrev
+Auto-Abbrev is a package designed to minimize the typing distance to any word in a file. It works as follows:
+
+1. Determine a list of all words in the file
+2. Sort the list of words by their frequency (most used words first)
+3. Going down the list, select the shortest unique abbreviation possible. This makes the most frequent words the easiest to type, given that they get first pick on abbreviations
+4. Output the list of (abbreviation, word) pairs in the appropriate format for the editor (Emacs only, currently)
+
+It is then the job of the editor integration to make it easy to know the abbreviations. This is accomplished most effectively by visually underlining the abbreviation characters for each word in-line.
