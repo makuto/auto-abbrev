@@ -1,4 +1,67 @@
 import re
+# (require 'auto-abbrev)
+debugPrint = False
+
+# Build Emacs regular expression which highlights the abbreviation letters
+def buildFontLockKeywords(word, abbreviation):
+    fontLockKeywords = ''
+    # TODO: How could this get the word separators in there?
+    # for subwordIndex in range(numSubwordsUsed):
+    #     fontLockKeywords= "\\\\({}\\\\){}".format(subwords[subwordIndex][0][:subwords[subwordIndex][1]],
+    #                                           subwords[subwordIndex][0][subwords[subwordIndex][1]:])
+    currentAbbrevIndex = 0
+    lockOpen = False
+    for char in word:
+        if (currentAbbrevIndex < len(abbreviation)
+            and char.lower() == abbreviation[currentAbbrevIndex].lower()):
+            if not lockOpen:
+                lockOpen = True
+                fontLockKeywords += '\\\\('
+            
+            currentAbbrevIndex += 1
+        else:
+            if lockOpen:
+                lockOpen = False
+                fontLockKeywords+= '\\\\)'
+                
+        fontLockKeywords += char
+    return fontLockKeywords
+
+# Output in Emacs abbrev-file format
+def outputAbbrevs(abbreviations):
+    # print(""";;-*-coding: utf-8;-*-
+    print("""(define-abbrev-table 'python-mode-abbrev-table
+  '(""")
+    
+    for abbreviation, wordFontLockPair in abbreviations.items():
+        print("    (\"{}\" \"{}\" nil :count 0)".format(abbreviation, wordFontLockPair[0]))
+        
+    print("   ))")
+
+# For font lock output, sort in order of length so that more specific matches will
+# overwrite less specific ones
+def outputFontLockKeywords(abbreviations):
+    print('''(setq auto-abbrev-highlights
+      '(''')
+    
+    fontLockKeywords = []
+    for abbreviation, wordFontLockPair in abbreviations.items():
+        fontLockKeywords.append(wordFontLockPair[1])
+        
+    def sortByLenThenAlphabetical(str):
+        return -len(str), str.lower()
+    fontLockKeywords = sorted(fontLockKeywords, key = sortByLenThenAlphabetical)
+    
+    for keyword in fontLockKeywords:
+        faces = "1 'auto-abbrev-highlight-face"
+        numLocks = keyword.count('\\(')
+        if numLocks > 1:
+            faces = ''
+            for faceNum in range(numLocks):
+                faces += "({} 'auto-abbrev-highlight-face)".format(faceNum + 1)
+        print("        (\"\\\\b{}\\\\b\" {})".format(keyword, faces))
+        
+    print("        ))")
 
 def main():
     abbreviations = {}
@@ -24,7 +87,8 @@ def main():
             # 
             matches = re.findall(r'[_a-zA-Z][_a-zA-Z0-9.\-]+', word)
             for match in matches:
-                print("word {} formatted {}".format(word, match))
+                if debugPrint:
+                    print("word {} formatted {}".format(word, match))
             
                 # Ignore things which aren't words (e.g. tabs)
                 # Don't shorten already short words
@@ -44,7 +108,9 @@ def main():
         word = wordPair[0]
         acronyms = []
         
-        print("----\n{}".format(word))
+        if debugPrint:
+            print("----\n{}".format(word))
+            
         """this-is_a_test2"""
         # TODO: This doesn't work for single letter words (e.g. the _a_)
         matches = re.findall(r"([a-zA-Z][a-z0-9]+)", word)
@@ -75,7 +141,8 @@ def main():
         numSubwordsUsed = 1
         # Make sure that no abbreviation would conflict with a word in short words
         while abbreviationKey in abbreviations or abbreviationKey in shortWords:
-            print("\tKey {} failed".format(abbreviationKey))
+            if debugPrint:
+                print("\tKey {} failed".format(abbreviationKey))
             # This is true only after failing to use the first letter of all subwords
             # so that subword subsequent letters begin adding in
             allSubwordsUsed = False
@@ -95,20 +162,26 @@ def main():
                 if allSubwordsUsed and subwordLettersToUse < len(subwords[subwordIndex][0]):
                     subwordLettersToUse += 1
                     subwords[subwordIndex][1] = subwordLettersToUse
-                print("subword [{}] ({}) letters to use {} ({})"
-                      .format(subwordIndex,
-                              subwords[subwordIndex][0],
-                              subwordLettersToUse,
-                              subwords[subwordIndex][0][:subwordLettersToUse]))
+                if debugPrint:
+                    print("subword [{}] ({}) letters to use {} ({})"
+                          .format(subwordIndex,
+                                  subwords[subwordIndex][0],
+                                  subwordLettersToUse,
+                                  subwords[subwordIndex][0][:subwordLettersToUse]))
                 abbreviationKey += (subwords[subwordIndex][0][:subwordLettersToUse])
                 
             abbreviationKey = abbreviationKey.lower()
             
-        print("\tKey {} chosen".format(abbreviationKey))
-        abbreviations[abbreviationKey] = word
+        if debugPrint:
+            print("\tKey {} chosen".format(abbreviationKey))
+        fontLockKeywords = buildFontLockKeywords(word, abbreviationKey)
+        abbreviations[abbreviationKey] = (word, fontLockKeywords)
 
     print(abbreviations)
     print("{} Abbreviations".format(len(abbreviations)))
+    
+    outputAbbrevs(abbreviations)
+    outputFontLockKeywords(abbreviations)
 
 if __name__ == '__main__':
     main()
