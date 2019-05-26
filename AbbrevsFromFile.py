@@ -27,21 +27,28 @@ def buildFontLockKeywords(word, abbreviation):
         fontLockKeywords += char
     return fontLockKeywords
 
+outputBuffer = ''
+def output(str):
+    global outputBuffer
+    if debugPrint:
+        print(str)
+    outputBuffer += str + '\n'
+
 # Output in Emacs abbrev-file format
 def outputAbbrevs(abbreviations):
     # print(""";;-*-coding: utf-8;-*-
-    print("""(define-abbrev-table 'python-mode-abbrev-table
+    output("""(define-abbrev-table 'python-mode-abbrev-table
   '(""")
     
     for abbreviation, wordFontLockPair in abbreviations.items():
-        print("    (\"{}\" \"{}\" nil :count 0)".format(abbreviation, wordFontLockPair[0]))
+        output("    (\"{}\" \"{}\" nil :count 0)".format(abbreviation, wordFontLockPair[0]))
         
-    print("   ))")
+    output("   ))")
 
 # For font lock output, sort in order of length so that more specific matches will
 # overwrite less specific ones
 def outputFontLockKeywords(abbreviations):
-    print('''(setq auto-abbrev-highlights
+    output('''(setq auto-abbrev-highlights
       '(''')
     
     fontLockKeywords = []
@@ -59,9 +66,9 @@ def outputFontLockKeywords(abbreviations):
             faces = ''
             for faceNum in range(numLocks):
                 faces += "({} 'auto-abbrev-highlight-face)".format(faceNum + 1)
-        print("        (\"\\\\b{}\\\\b\" {})".format(keyword, faces))
+        output("        (\"\\\\b{}\\\\b\" {})".format(keyword, faces))
         
-    print("        ))")
+    output("        ))")
 
 def main():
     abbreviations = {}
@@ -177,12 +184,22 @@ def main():
         fontLockKeywords = buildFontLockKeywords(word, abbreviationKey)
         abbreviations[abbreviationKey] = (word, fontLockKeywords)
 
-    print(abbreviations)
-    print("{} Abbreviations".format(len(abbreviations)))
+    if abbreviations:
+        outputAbbrevs(abbreviations)
+        outputFontLockKeywords(abbreviations)
     
-    outputAbbrevs(abbreviations)
-    outputFontLockKeywords(abbreviations)
+        outFile = open('auto-abbrevs-for-buffer.el', 'w')
+        outFile.write(outputBuffer)
+        outFile.close()
+        
+        if debugPrint:
+            print(abbreviations)
+        print("Done; created {} abbreviations".format(len(abbreviations)))
+        
+    else:
+        print("Something didn't work. No abbreviations were created...")
 
+# TODO: Actually make this take arguments
 if __name__ == '__main__':
     main()
 
