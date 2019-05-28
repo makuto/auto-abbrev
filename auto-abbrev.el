@@ -13,19 +13,18 @@
   "Face for abbreviation hints"
   :group 'auto-abbrev-faces)
 
-(defun auto-abbrev-on ()
+(defun auto-abbrev-turn-on ()
+  "Add auto-abbrev font locks and abbrevs to the current buffer"
   (abbrev-mode 1)
   ;; Make sure we clear out the old keywords
   (clear-abbrev-table auto-abbrev-mode-abbrev-table)
   (font-lock-remove-keywords nil auto-abbrev-highlights)
   (load-file "/home/macoy/Development/code/repositories/auto-abbrev/.auto-abbrevs-for-buffer.el")
   (font-lock-add-keywords nil auto-abbrev-highlights)
-  (font-lock-fontify-buffer)
-  ;; Always refresh because it might as well get up to date
-  ;; (auto-abbrev-refresh-current-buffer)
-  )
+  (font-lock-fontify-buffer))
 
-(defun auto-abbrev-off ()
+(defun auto-abbrev-turn-off ()
+  ;; Note that we Don't need to clear abbrev table because it will be disabled when the mode is off
   (font-lock-remove-keywords nil auto-abbrev-highlights)
   (font-lock-fontify-buffer))
 
@@ -34,9 +33,8 @@
   ;; :init-value t
   :lighter " Auto-Abbrev"
   (if auto-abbrev-mode
-      (auto-abbrev-on)
-    (auto-abbrev-off))
-  )
+      (auto-abbrev-turn-on)
+    (auto-abbrev-off)))
 
 ;; Filled out by script later
 (setq auto-abbrev-highlights nil)
@@ -46,13 +44,9 @@
 
 ;; TODO: What buffer will this run in?
 (defun auto-abbrev-generation-finished ()
-  ;; This is necessary because the old abbrevs will stick around otherwise
-  (clear-abbrev-table auto-abbrev-mode-abbrev-table)
-  (font-lock-remove-keywords nil auto-abbrev-highlights)
-  ;; (font-lock-fontify-buffer)
-  (load-file "/home/macoy/Development/code/repositories/auto-abbrev/.auto-abbrevs-for-buffer.el")
-  (font-lock-add-keywords nil auto-abbrev-highlights)
-  (font-lock-fontify-buffer)
+  ;; Only refresh if auto-abbrev-mode is active
+  (when auto-abbrev-mode
+    (auto-abbrev-turn-on))
   (message "Auto-abbrevs updated"))
 
 (defun auto-abbrev-refresh-current-buffer ()
