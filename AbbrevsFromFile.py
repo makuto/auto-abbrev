@@ -1,14 +1,18 @@
 import re
-# (require 'auto-abbrev)
+import argparse
+
 debugPrint = False
+
+commentChars = ['#', ';;', '//']
+
+# Escape any characters in the word which would throw off the regex
+def escapeRegexSymbols(word):
+    return word.replace('.', '\\\\.')
 
 # Build Emacs regular expression which highlights the abbreviation letters
 def buildFontLockKeywords(word, abbreviation):
     fontLockKeywords = ''
-    # TODO: How could this get the word separators in there?
-    # for subwordIndex in range(numSubwordsUsed):
-    #     fontLockKeywords= "\\\\({}\\\\){}".format(subwords[subwordIndex][0][:subwords[subwordIndex][1]],
-    #                                           subwords[subwordIndex][0][subwords[subwordIndex][1]:])
+    
     currentAbbrevIndex = 0
     lockOpen = False
     for char in word:
@@ -25,7 +29,13 @@ def buildFontLockKeywords(word, abbreviation):
                 fontLockKeywords+= '\\\\)'
                 
         fontLockKeywords += char
-    return fontLockKeywords
+    
+        # In the case where the final char is part of the abbreviation, close it
+    if lockOpen:
+        lockOpen = False
+        fontLockKeywords+= '\\\\)'
+        
+    return escapeRegexSymbols(fontLockKeywords)
 
 outputBuffer = ''
 def output(str):
@@ -37,7 +47,7 @@ def output(str):
 # Output in Emacs abbrev-file format
 def outputAbbrevs(abbreviations):
     # print(""";;-*-coding: utf-8;-*-
-    output("""(define-abbrev-table 'python-mode-abbrev-table
+    output("""(define-abbrev-table 'auto-abbrev-mode-abbrev-table
   '(""")
     
     for abbreviation, wordFontLockPair in abbreviations.items():
@@ -71,9 +81,21 @@ def outputFontLockKeywords(abbreviations):
     output("        ))")
 
 def main():
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("-v", "--verbose", help = "Print verbose string parse output", action = "store_true")
+    argparser.add_argument("inputFile", help = "The file to parse", type=str)
+    argparser.add_argument("-o", "--outputFile", help = "The editor configuration file to output",
+                           type=str, nargs = "?", default="auto-abbrevs-for-buffer.el")
+    args = argparser.parse_args()
+    if args.verbose:
+        global debugPrint
+        debugPrint = True
+        
+    print("Reading {}, outputting to {}".format(args.inputFile, args.outputFile))
+    
     abbreviations = {}
 
-    inputFile = open("AbbrevsFromFile.py", "r")
+    inputFile = open(args.inputFile, "r")
     inputString = inputFile.readlines()
     inputFile.close()
 
@@ -82,16 +104,16 @@ def main():
     shortWords = {}
     for line in inputString:
         # Ignore comments
-        if line.strip(" \t")[0] == '#':
+        if line.strip(" \t")[0] in commentChars:
             continue
         
         splitWords = line.split(" ")
         for word in splitWords:
-            if word == '#':
+            # Ignore subsequent words if the rest of the line is commented
+            if word in commentChars:
                 break
             
             # matches words and word.word2
-            # 
             matches = re.findall(r'[_a-zA-Z][_a-zA-Z0-9.\-]+', word)
             for match in matches:
                 if debugPrint:
@@ -118,7 +140,6 @@ def main():
         if debugPrint:
             print("----\n{}".format(word))
             
-        """this-is_a_test2"""
         # TODO: This doesn't work for single letter words (e.g. the _a_)
         matches = re.findall(r"([a-zA-Z][a-z0-9]+)", word)
         # Tuples of (subword, index to next unused character in subword)
@@ -126,19 +147,7 @@ def main():
         for match in matches:
             # print("subword {}".format(match))
             subwords.append([match, 1])
-            
-        # Ignore hungarian notation
-        # TODO: Add support for 'pch' and the like
-        # if len(word) == 1 or (word[0].isupper() or not word[1].isupper()):
-        #     acronyms.append(word[0])
-
-        # for i in range(1, len(word)):
-        #     char = word[i]
-        #     wordSeparators = ['.', '_', '-']
-        #     if char.isupper() or word[i-1] in wordSeparators:
-        #         acronyms.append(char)
-        # print(acronyms)
-        
+                    
         if not subwords:
             print("Error finding subwords for '{}'".format(word))
             continue
@@ -188,7 +197,7 @@ def main():
         outputAbbrevs(abbreviations)
         outputFontLockKeywords(abbreviations)
     
-        outFile = open('auto-abbrevs-for-buffer.el', 'w')
+        outFile = open(args.outputFile, 'w')
         outFile.write(outputBuffer)
         outFile.close()
         
@@ -199,7 +208,6 @@ def main():
     else:
         print("Something didn't work. No abbreviations were created...")
 
-# TODO: Actually make this take arguments
 if __name__ == '__main__':
     main()
 
