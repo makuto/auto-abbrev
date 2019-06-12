@@ -155,8 +155,10 @@ def main():
         # Try the minimum abbreviation first (e.g. only first letter), then rotate through
         abbreviationKey = subwords[0][0][0].lower()
         numSubwordsUsed = 1
+        attemptsMade = 0
         # Make sure that no abbreviation would conflict with a word in short words
-        while abbreviationKey in abbreviations or abbreviationKey in shortWords:
+        while (abbreviationKey in abbreviations or abbreviationKey in shortWords) and attemptsMade < 10:
+            attemptsMade += 1
             if debugPrint:
                 print("\tKey {} failed".format(abbreviationKey))
             # This is true only after failing to use the first letter of all subwords
@@ -187,11 +189,15 @@ def main():
                 abbreviationKey += (subwords[subwordIndex][0][:subwordLettersToUse])
                 
             abbreviationKey = abbreviationKey.lower()
-            
-        if debugPrint:
-            print("\tKey {} chosen".format(abbreviationKey))
-        fontLockKeywords = buildFontLockKeywords(word, abbreviationKey)
-        abbreviations[abbreviationKey] = (word, fontLockKeywords)
+
+        if attemptsMade < 10:
+            if debugPrint:
+                print("\tKey {} chosen".format(abbreviationKey))
+                
+            fontLockKeywords = buildFontLockKeywords(word, abbreviationKey)
+            abbreviations[abbreviationKey] = (word, fontLockKeywords)
+        else:
+            print("Error: Failed to find any possible abbrev for '{}'".format(word))
 
     if abbreviations:
         outputAbbrevs(abbreviations)
